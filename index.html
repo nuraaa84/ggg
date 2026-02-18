@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Формула Пика: Калибровка сетки</title>
+    <title>Пик формуласы: Калибровка сетки</title>
     <style>
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -93,38 +93,38 @@
 </head>
 <body>
 
-    <h1>📏 Точная Формула Пика</h1>
+    <h1>📏 Пик формуласы</h1>
     
     <div class="controls">
-        <p><strong>Шаг 1.</strong> Загрузите фото с многоугольником.</p>
+        <p><strong>1-қадам.</strong> Көпбұрыш бейнеленген суретті жүктеу.</p>
         <input type="file" id="imageUpload" accept="image/*">
     </div>
 
     <div class="settings-panel">
-        <h3 style="margin-top: 0;">⚙️ Шаг 2. Настройка сетки (Подгоните под фото)</h3>
+        <h3 style="margin-top: 0;">⚙️ 2-қадам. Тор параметрлері(жүктелген сурет өлшемімен)</h3>
         <p class="warning">Важно: Настройте сетку ДО того, как ставить точки.</p>
         
         <div class="slider-group">
-            <label>Размер клеток:</label>
+            <label>Тор өлшемі:</label>
             <input type="range" id="gridSizeSlider" min="10" max="200" value="40" step="1">
             <span class="slider-value" id="gridVal">40</span>
         </div>
         <div class="slider-group">
-            <label>Сдвиг вправо (X):</label>
+            <label>Оңға ығысу (X):</label>
             <input type="range" id="offsetXSlider" min="0" max="40" value="0" step="1">
             <span class="slider-value" id="xVal">0</span>
         </div>
         <div class="slider-group">
-            <label>Сдвиг вниз (Y):</label>
+            <label>Төменге ығысу (Y):</label>
             <input type="range" id="offsetYSlider" min="0" max="40" value="0" step="1">
             <span class="slider-value" id="yVal">0</span>
         </div>
     </div>
 
     <div class="controls">
-        <p><strong>Шаг 3.</strong> Кликайте точно по узлам. Точки примагнитятся к настроенной сетке.</p>
-        <button id="calcBtn">Рассчитать площадь</button>
-        <button id="clearBtn">Очистить точки</button>
+        <p><strong>3-қадам.</strong> Түйіндерді дәл басыңыз. Нүктелер конфигурацияланған торға жабысады..</p>
+        <button id="calcBtn">Ауданын есептеу</button>
+        <button id="clearBtn">Нүктелерді жою</button>
     </div>
 
     <div class="canvas-container">
@@ -132,7 +132,7 @@
     </div>
 
     <div id="output" style="display: none;">
-        <h2>Результаты (Формула Пика):</h2>
+        <h2>Нәтиже:</h2>
         <div id="resultsText"></div>
     </div>
 
