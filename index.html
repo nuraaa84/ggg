@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Формула Пика: Калибровка сетки</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f4f7f6;
+            color: #333;
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        h1 { color: #2c3e50; }
+        
+        .controls, .settings-panel {
+            background: #fff;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        .settings-panel {
+            background: #e8f4f8;
+            border: 1px solid #bce0ee;
+        }
+        
+        .slider-group {
+            display: flex;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+        .slider-group label {
+            width: 170px;
+            font-weight: 500;
+        }
+        .slider-group input {
+            flex-grow: 1;
+            margin: 0 15px;
+        }
+        .slider-value {
+            width: 40px;
+            text-align: right;
+            font-family: monospace;
+            font-weight: bold;
+            font-size: 16px;
+        }
+
+        button {
+            background-color: #8e44ad;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            margin-right: 10px;
+            margin-top: 10px;
+        }
+        button:hover { background-color: #9b59b6; }
+        #clearBtn { background-color: #e74c3c; }
+        #clearBtn:hover { background-color: #c0392b; }
+        
+        .canvas-container {
+            position: relative;
+            overflow: auto;
+            background: #fff;
+            border: 2px dashed #bdc3c7;
+            border-radius: 8px;
+            text-align: center;
+        }
+        canvas {
+            cursor: crosshair;
+            max-width: 100%;
+            display: block;
+            margin: 0 auto;
+        }
+        
+        #output {
+            margin-top: 20px;
+            background: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            font-size: 16px;
+            line-height: 1.6;
+        }
+        .math { font-family: monospace; font-size: 18px; font-weight: bold; color: #2c3e50; background: #ecf0f1; padding: 2px 6px; border-radius: 4px;}
+        .warning { color: #d35400; font-size: 14px; margin-top: 0;}
+    </style>
+</head>
+<body>
+
+    <h1>📏 Точная Формула Пика</h1>
+    
+    <div class="controls">
+        <p><strong>Шаг 1.</strong> Загрузите фото с многоугольником.</p>
+        <input type="file" id="imageUpload" accept="image/*">
+    </div>
+
+    <div class="settings-panel">
+        <h3 style="margin-top: 0;">⚙️ Шаг 2. Настройка сетки (Подгоните под фото)</h3>
+        <p class="warning">Важно: Настройте сетку ДО того, как ставить точки.</p>
+        
+        <div class="slider-group">
+            <label>Размер клеток:</label>
+            <input type="range" id="gridSizeSlider" min="10" max="200" value="40" step="1">
+            <span class="slider-value" id="gridVal">40</span>
+        </div>
+        <div class="slider-group">
+            <label>Сдвиг вправо (X):</label>
+            <input type="range" id="offsetXSlider" min="0" max="40" value="0" step="1">
+            <span class="slider-value" id="xVal">0</span>
+        </div>
+        <div class="slider-group">
+            <label>Сдвиг вниз (Y):</label>
+            <input type="range" id="offsetYSlider" min="0" max="40" value="0" step="1">
+            <span class="slider-value" id="yVal">0</span>
+        </div>
+    </div>
+
+    <div class="controls">
+        <p><strong>Шаг 3.</strong> Кликайте точно по узлам. Точки примагнитятся к настроенной сетке.</p>
+        <button id="calcBtn">Рассчитать площадь</button>
+        <button id="clearBtn">Очистить точки</button>
+    </div>
+
+    <div class="canvas-container">
+        <canvas id="canvas"></canvas>
+    </div>
+
+    <div id="output" style="display: none;">
+        <h2>Результаты (Формула Пика):</h2>
+        <div id="resultsText"></div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        const imageUpload = document.getElementById('imageUpload');
+        const output = document.getElementById('output');
+        const resultsText = document.getElementById('resultsText');
+
+        // Элементы управления сеткой
+        const gridSizeSlider = document.getElementById('gridSizeSlider');
+        const offsetXSlider = document.getElementById('offsetXSlider');
+        const offsetYSlider = document.getElementById('offsetYSlider');
+        const gridVal = document.getElementById('gridVal');
+        const xVal = document.getElementById('xVal');
+        const yVal = document.getElementById('yVal');
+
+        let img = new Image();
+        let points = []; 
+        let GRID_SIZE = 40; 
+        let offsetX = 0;
+        let offsetY = 0;
+
+        // Функция обновления параметров сетки
+        function updateGridSettings() {
+            GRID_SIZE = parseFloat(gridSizeSlider.value);
+            offsetX = parseFloat(offsetXSlider.value);
+            offsetY = parseFloat(offsetYSlider.value);
+            
+            gridVal.textContent = GRID_SIZE;
+            xVal.textContent = offsetX;
+            yVal.textContent = offsetY;
+
+            // Сдвиг не может быть больше размера одной клетки
+            offsetXSlider.max = GRID_SIZE;
+            offsetYSlider.max = GRID_SIZE;
+
+            points = []; // Сбрасываем точки при изменении сетки, иначе они "съедут"
+            output.style.display = 'none';
+            drawCanvas();
+        }
+
+        gridSizeSlider.addEventListener('input', updateGridSettings);
+        offsetXSlider.addEventListener('input', updateGridSettings);
+        offsetYSlider.addEventListener('input', updateGridSettings);
+
+        // Загрузка изображения
+        imageUpload.addEventListener('change', function(e) {
+            const reader = new FileReader();
+            reader.onload = function(event) {
+                img.onload = function() {
+                    canvas.width = img.width;
+                    canvas.height = img.height;
+                    
+                    // Автоматически подбираем адекватный масштаб для нового фото
+                    let initialGrid = Math.max(10, Math.round(img.width / 20));
+                    gridSizeSlider.max = Math.round(img.width / 2); // Максимальный размер клетки
+                    gridSizeSlider.value = initialGrid;
+                    offsetXSlider.value = 0;
+                    offsetYSlider.value = 0;
+                    
+                    updateGridSettings();
+                }
+                img.src = event.target.result;
+            }
+            if(e.target.files[0]) reader.readAsDataURL(e.target.files[0]);
+        });
+
+        // Отслеживание кликов с учетом сдвига (offset)
+        canvas.addEventListener('click', function(e) {
+            if (!img.src) return;
+            const rect = canvas.getBoundingClientRect();
+            const scaleX = canvas.width / rect.width;
+            const scaleY = canvas.height / rect.height;
+            
+            const rawX = (e.clientX - rect.left) * scaleX;
+            const rawY = (e.clientY - rect.top) * scaleY;
+
+            // Высчитываем ближайший узел с учетом сдвига
+            const x = Math.round((rawX - offsetX) / GRID_SIZE) * GRID_SIZE + offsetX;
+            const y = Math.round((rawY - offsetY) / GRID_SIZE) * GRID_SIZE + offsetY;
+            
+            points.push({x, y});
+            drawCanvas();
+        });
+
+        document.getElementById('clearBtn').addEventListener('click', function() {
+            points = [];
+            drawCanvas();
+            output.style.display = 'none';
+        });
+
+        // Функция отрисовки путей сетки
+        function drawGridPaths(startX, startY) {
+            ctx.beginPath();
+            for (let x = startX; x <= canvas.width; x += GRID_SIZE) {
+                ctx.moveTo(x, 0); ctx.lineTo(x, canvas.height);
+            }
+            for (let y = startY; y <= canvas.height; y += GRID_SIZE) {
+                ctx.moveTo(0, y); ctx.lineTo(canvas.width, y);
+            }
+            ctx.stroke();
+        }
+
+        function drawCanvas() {
+            if (!img.src) return;
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.drawImage(img, 0, 0);
+
+            let startX = offsetX % GRID_SIZE;
+            let startY = offsetY % GRID_SIZE;
+
+            // 1. Рисуем черную тень сетки (чтобы было видно на белом фоне)
+            ctx.strokeStyle = 'rgba(0, 0, 0, 0.4)';
+            ctx.lineWidth = 3;
+            drawGridPaths(startX, startY);
+
+            // 2. Рисуем белую сетку сверху (чтобы было видно на темном фоне)
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.9)';
+            ctx.lineWidth = 1;
+            drawGridPaths(startX, startY);
+
+            // Рисуем многоугольник
+            if (points.length > 0) {
+                ctx.beginPath();
+                ctx.moveTo(points[0].x, points[0].y);
+                for (let i = 1; i < points.length; i++) {
+                    ctx.lineTo(points[i].x, points[i].y);
+                }
+                if (points.length > 2) ctx.lineTo(points[0].x, points[0].y);
+                
+                ctx.strokeStyle = '#e74c3c';
+                ctx.lineWidth = 4;
+                ctx.stroke();
+                
+                ctx.fillStyle = 'rgba(231, 76, 60, 0.3)';
+                ctx.fill();
+
+                // Рисуем точки
+                ctx.fillStyle = '#2c3e50';
+                points.forEach(p => {
+                    ctx.beginPath();
+                    ctx.arc(p.x, p.y, 6, 0, Math.PI * 2);
+                    ctx.fill();
+                });
+            }
+        }
+
+        // Безопасный НОД
+        function gcd(a, b) {
+            a = Math.abs(Math.round(a));
+            b = Math.abs(Math.round(b));
+            if (b === 0) return a;
+            return gcd(b, a % b);
+        }
+
+        // Расчет Пика
+        document.getElementById('calcBtn').addEventListener('click', function() {
+            if (points.length < 3) {
+                alert('Пожалуйста, отметьте как минимум 3 точки.');
+                return;
+            }
+
+            const n = points.length;
+            let B = 0; // Граничные (Г)
+            let S_exact = 0; 
+
+            for (let i = 0; i < n; i++) {
+                let p1 = points[i];
+                let p2 = points[(i + 1) % n];
+                
+                // Длины отрезков в клетках
+                let dx = Math.abs(p1.x - p2.x) / GRID_SIZE;
+                let dy = Math.abs(p1.y - p2.y) / GRID_SIZE;
+                
+                B += gcd(dx, dy);
+
+                // Площадь по Гауссу, переведенная в клетки (с учетом смещения сетки)
+                let p1_gridX = (p1.x - offsetX) / GRID_SIZE;
+                let p1_gridY = (p1.y - offsetY) / GRID_SIZE;
+                let p2_gridX = (p2.x - offsetX) / GRID_SIZE;
+                let p2_gridY = (p2.y - offsetY) / GRID_SIZE;
+                
+                S_exact += (p1_gridX * p2_gridY - p2_gridX * p1_gridY);
+            }
+            
+            S_exact = Math.abs(S_exact) / 2;
+            let I = S_exact - (B / 2) + 1; // Внутренние узлы (В)
+
+            let htmlStr = `<strong>Формула:</strong> <span class="math">S = В + (Г / 2) − 1</span><br><br>`;
+            htmlStr += `<strong>В</strong> (Узлов внутри) = ${I}<br>`;
+            htmlStr += `<strong>Г</strong> (Узлов на границе) = ${B}<br><br>`;
+            htmlStr += `<strong>Решение:</strong><br>`;
+            htmlStr += `<span class="math">S = ${I} + (${B} / 2) − 1</span><br><br>`;
+            htmlStr += `<h3 style="color:#8e44ad;">Площадь фигуры: ${S_exact} полных клеток</h3>`;
+
+            resultsText.innerHTML = htmlStr;
+            output.style.display = 'block';
+            output.scrollIntoView({ behavior: 'smooth' });
+        });
+    </script>
+</body>
+</html>
